@@ -9,15 +9,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.property.ListProperty;
-import javafx.beans.property.SimpleListProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 
-import org.jabref.gui.AbstractViewModel;
 import org.jabref.gui.BasePanel;
 import org.jabref.gui.DialogService;
 import org.jabref.logic.l10n.Localization;
@@ -27,24 +21,22 @@ import org.jabref.model.metadata.MetaData;
 
 import static com.google.common.collect.ImmutableList.of;
 
-class ContentSelectorDialogViewModel extends AbstractViewModel {
+class ContentSelectorDialogViewModel {
 
     private static final List<String> DEFAULT_FIELD_NAMES = of(FieldName.AUTHOR, FieldName.JOURNAL, FieldName.KEYWORDS, FieldName.PUBLISHER);
 
-    private final BasePanel basePanel;
     private final MetaData metaData;
     private final DialogService dialogService;
+    private final BasePanel basePanel;
     private final Map<String, List<String>> fieldNameKeywordsMap = new HashMap<>();
 
-    private ListProperty<String> fieldNames = new SimpleListProperty<>(FXCollections.observableArrayList());
-    private ListProperty<String> keywords = new SimpleListProperty<>(FXCollections.observableArrayList());
-    private StringProperty selectedFieldName = new SimpleStringProperty();
-    private StringProperty selectedKeyword = new SimpleStringProperty();
+    private ObservableList<String> fieldNames = FXCollections.observableArrayList();
+    private ObservableList<String> keywords = FXCollections.observableArrayList();
 
-    ContentSelectorDialogViewModel(BasePanel basePanel, DialogService dialogService) {
-        this.basePanel = basePanel;
-        this.metaData = basePanel.getBibDatabaseContext().getMetaData();
+    ContentSelectorDialogViewModel(MetaData metaData, BasePanel basePanel, DialogService dialogService) {
+        this.metaData = metaData;
         this.dialogService = dialogService;
+        this.basePanel = basePanel;
         populateFieldNameKeywordsMapWithExistingValues();
         populateFieldNamesListWithValues();
     }
@@ -65,32 +57,12 @@ class ContentSelectorDialogViewModel extends AbstractViewModel {
         );
     }
 
-    ListProperty<String> getFieldNamesBackingList() {
+    ObservableList<String> getFieldNamesBackingList() {
         return fieldNames;
     }
 
-    StringProperty selectedFieldNameProperty() {
-        return selectedFieldName;
-    }
-
-    BooleanBinding isFieldNameListEmpty() {
-        return Bindings.isEmpty(fieldNames);
-    }
-
-    BooleanBinding isNoFieldNameSelected() {
-        return Bindings.isEmpty(selectedFieldName);
-    }
-
-    ListProperty<String> getKeywordsBackingList() {
+    ObservableList<String> getKeywordsBackingList() {
         return keywords;
-    }
-
-    StringProperty selectedKeywordProperty() {
-        return selectedKeyword;
-    }
-
-    BooleanBinding isNoKeywordSelected() {
-        return Bindings.isEmpty(selectedKeyword);
     }
 
     void showInputFieldNameDialog() {
@@ -130,19 +102,20 @@ class ContentSelectorDialogViewModel extends AbstractViewModel {
         fieldNames.remove(fieldNameToRemove);
     }
 
-    void populateKeywords(String selectedFieldName) {
+    void populateKeywordsFor(String selectedFieldName) {
         keywords.clear();
         if (selectedFieldName != null) {
             keywords.addAll(fieldNameKeywordsMap.get(selectedFieldName));
         }
+
     }
 
     void showInputKeywordDialog(String selectedFieldName) {
         dialogService.showInputDialogAndWait(Localization.lang("Add new keyword"), Localization.lang("Keyword:"))
-                .ifPresent(newKeyword -> addKeywordIfUnique(selectedFieldName, newKeyword));
+                .ifPresent(newKeyword -> addKeyword(selectedFieldName, newKeyword));
     }
 
-    private void addKeywordIfUnique(String fieldName, String keywordToAdd) {
+    private void addKeyword(String fieldName, String keywordToAdd) {
         boolean exists = fieldNameKeywordsMap.get(fieldName).contains(keywordToAdd);
         if (exists) {
             dialogService.showErrorDialogAndWait(Localization.lang("Keyword \"%0\" already exists", keywordToAdd));
@@ -153,7 +126,7 @@ class ContentSelectorDialogViewModel extends AbstractViewModel {
         existingKeywords.add(keywordToAdd);
         fieldNameKeywordsMap.put(fieldName, existingKeywords);
         keywords.add(keywordToAdd);
-        populateKeywords(fieldName);
+        populateKeywordsFor(fieldName);
     }
 
     void showRemoveKeywordConfirmationDialog(String fieldName, String keywordToRemove) {
